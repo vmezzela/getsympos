@@ -1,0 +1,7 @@
+# GetSympos
+
+## Installation
+
+```
+pipx install .
+```

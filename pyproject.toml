@@ -1,0 +1,20 @@
+[project]
+name = "getsympos"
+version = "0.1.0"
+description = "CLI tool to fetch the sympos of a specific symbol"
+authors = [
+    { name = "Vincenzo Mezzela", email = "vincenzo.mezzela@suse.com" }
+]
+
+dependencies = [
+    "pylibdebuginfod",
+    "pyelftools"
+]
+
+[project.scripts]
+getsympos = "getsympos:main"
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
