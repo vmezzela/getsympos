@@ -251,7 +251,7 @@ def main():
 
     if not elf.has_dwarf_info():
         logging.warning("Debug info missing")
-        logging.info("Downloading debug info...")
+        logging.info(f'Downloading debug info from {os.environ.get("DEBUGINFOD_URLS")}')
         build_id = get_build_id(elf)
         assert build_id, f"Coulnd't find build id for {args.elf}"
 
@@ -273,7 +273,7 @@ def main():
                 shutil.rmtree(cache_dir)
                 logging.info(f"Removed cached directory: {cache_dir}")
 
-                logging.info("Downloading debug info (again)...")
+                logging.info(f'Downloading (again) debug info from {os.environ.get("DEBUGINFOD_URLS")}')
                 _, path = d.find_debuginfo(build_id)
 
         assert path, f"Coulnd't find debug info for {args.elf}:{build_id}"
