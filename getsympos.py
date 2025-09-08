@@ -228,7 +228,7 @@ def get_build_id(elf):
         if note["n_type"] == "NT_GNU_BUILD_ID" and note["n_name"] == "GNU":
             return note["n_desc"]
 
-    raise RuntimeError("Build-ID not present")
+    return None
 
 
 def main():
@@ -251,7 +251,10 @@ def main():
         logging.warning("Debug info missing")
         with DebugInfoD() as d:
             logging.info("Downloading debug info...")
-            _, path = d.find_debuginfo(get_build_id(elf))
+            build_id = get_build_id(elf)
+            assert build_id, f"Coulnd't find build id for {args.elf}"
+            _, path = d.find_debuginfo(build_id)
+            assert path, f"Coulnd't find debug info for {args.elf}:{build_id}"
             logging.info("Debug info downloaded!")
 
         # Replace the elf with the new one
