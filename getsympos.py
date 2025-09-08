@@ -1,14 +1,16 @@
 #!/usr/bin/python3
 
-import argparse
 from elftools.dwarf.compileunit import CompileUnit
 from elftools.dwarf.die import DIE
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 from functools import wraps
-from pathlib import PurePath
 from libdebuginfod import DebugInfoD
+from pathlib import Path, PurePath
+import argparse
 import logging
+import os
+import shutil
 
 def require_attr(attr, require_die=False):
     def decorator(func):
@@ -249,13 +251,33 @@ def main():
 
     if not elf.has_dwarf_info():
         logging.warning("Debug info missing")
+        logging.info("Downloading debug info...")
+        build_id = get_build_id(elf)
+        assert build_id, f"Coulnd't find build id for {args.elf}"
+
         with DebugInfoD() as d:
-            logging.info("Downloading debug info...")
-            build_id = get_build_id(elf)
-            assert build_id, f"Coulnd't find build id for {args.elf}"
             _, path = d.find_debuginfo(build_id)
-            assert path, f"Coulnd't find debug info for {args.elf}:{build_id}"
-            logging.info("Debug info downloaded!")
+
+            # It happens sometimes that debuginfod can't find the debuginfo
+            # because the environment variable DEBUGINFOD_URLS is not set
+            # and it stores an empty cache file. If we then add the server
+            # url but the empty cache file is still present, debuginfo
+            # doesn't query the remote server to fetch the updated
+            # debuginfo and just returns the empty one from the cache.
+            # Hence workaround this issue by trying to delete the file and
+            # query debuginfod again.
+            if not path:
+                logging.warning(f"Coulnd't find debug info for {args.elf}:{build_id}, trying do clear the cache.")
+                cache_dir = Path.home()/".cache"/"debuginfod_client"/build_id
+                assert cache_dir.exists()
+                shutil.rmtree(cache_dir)
+                logging.info(f"Removed cached directory: {cache_dir}")
+
+                logging.info("Downloading debug info (again)...")
+                _, path = d.find_debuginfo(build_id)
+
+        assert path, f"Coulnd't find debug info for {args.elf}:{build_id}"
+        logging.info("Debug info downloaded!")
 
         # Replace the elf with the new one
         f.close()
