@@ -136,18 +136,15 @@ def die_is_func(die: DIE):
     return die.tag == 'DW_TAG_subprogram'
 
 
-def get_function_symtab_index(function, address):
+def get_function_symtab_sympos(function, address):
     """
-    Retrieve the symbol index of a given function identified by its name and
-    its address. The address is needed because more function with the same name
-    might be present in the symbol table.
+    Retrieve the relative symbol position of a given function identified by its
+    name and its address. The address is needed because more function with the
+    same name might be present in the symbol table.
 
     Args:
         function: The name of the function.
         address: The address of the function.
-
-    Returns:
-        int: The index of the function in the symbol table.
     """
     symtab = elf.get_section_by_name(".symtab")
     assert isinstance(symtab, SymbolTableSection)
@@ -188,8 +185,8 @@ def get_function_information(die: DIE, filter_function_name=""):
 
     if all([name, file, line, addr]):
         file = clean_relative_path(file)
-        idx = get_function_symtab_index(name, addr)
-        print(f"{name} {file} {line} {hex(addr)} {idx}")
+        sympos = get_function_symtab_sympos(name, addr)
+        print(f"{name} {file} {line} {hex(addr)} {sympos}")
 
 
 def desc_cu(cu: CompileUnit, filter_cu_name="", filter_function_name=""):
@@ -237,6 +234,7 @@ def main():
     global elf
     parser = argparse.ArgumentParser()
     parser.add_argument("--elf", type=str, required=True, help="Path to the debug info file.")
+    # FIXME: memory consumption is huge when we don't specify a CU
     parser.add_argument("--cu", type=str, required=False, help="Compilation unit to filter the debug information.")
     parser.add_argument("--function", type=str, required=False, help="Function name to analyze.")
     args = parser.parse_args()
