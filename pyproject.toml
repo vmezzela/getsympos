@@ -8,7 +8,8 @@ authors = [
 
 dependencies = [
     "pylibdebuginfod",
-    "pyelftools"
+    "pyelftools",
+    "tabulate"
 ]
 
 [project.scripts]

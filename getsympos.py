@@ -7,6 +7,8 @@ from elftools.elf.sections import SymbolTableSection
 from functools import wraps
 from libdebuginfod import DebugInfoD
 from pathlib import Path, PurePath
+from tabulate import tabulate
+
 import argparse
 import logging
 import os
@@ -183,10 +185,12 @@ def get_function_information(die: DIE, filter_function_name=""):
     line = FUNC_ATTR_DESCRIPTIONS["DW_AT_decl_line"](die)
     addr = FUNC_ATTR_DESCRIPTIONS["DW_AT_low_pc"](die)
 
-    if all([name, file, line, addr]):
+    if name and file and line and addr:
         file = clean_relative_path(file)
         sympos = get_function_symtab_sympos(name, addr)
-        print(f"{name} {file} {line} {hex(addr)} {sympos}")
+        return [name, file, line, hex(addr), sympos]
+
+    return []
 
 
 def desc_cu(cu: CompileUnit, filter_cu_name="", filter_function_name=""):
@@ -208,9 +212,12 @@ def desc_cu(cu: CompileUnit, filter_cu_name="", filter_function_name=""):
 
     logging.debug(f"\n[Compilation Unit] Offset: {cu.cu_offset}, Name: {name}")
 
-    for die in cu.iter_DIEs():
-        if die_is_func(die):
-            get_function_information(die, filter_function_name)
+    return [
+        func_info
+        for die in cu.iter_DIEs()
+        if die_is_func(die)
+        if (func_info := get_function_information(die, filter_function_name))
+    ]
 
 
 def get_build_id(elf):
@@ -289,8 +296,19 @@ def main():
     assert elf.has_dwarf_info()
     dwarf_info = elf.get_dwarf_info(relocate_dwarf_sections=False)
 
+    logging.info("Starting sympos analysis")
+
+    data = []
     for cu in dwarf_info.iter_CUs():
-        desc_cu(cu, filter_cu_name=args.cu, filter_function_name=args.function)
+        cu_info = desc_cu(cu, filter_cu_name=args.cu, filter_function_name=args.function)
+        if cu_info:
+            data.extend(cu_info)
 
     elf.close()
     f.close();
+
+    if data:
+        header = ["Function", "File", "Line", "Address", "Sympos"]
+        print(tabulate(data, headers=header, tablefmt="simple"))
+    else:
+        print("No symbols found")
