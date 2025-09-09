@@ -1,5 +1,10 @@
 # GetSympos
 
+When livepatching a function with a non-unique name in an ELF binary, you need
+the symbol position (sympos) to distinguish between the different instances.
+
+`getsympos` is a utility that retrieves this sympos for you.
+
 ## Usage
 
 ```sh
