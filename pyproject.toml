@@ -7,7 +7,6 @@ authors = [
 ]
 
 dependencies = [
-    "pylibdebuginfod",
     "pyelftools",
     "tabulate"
 ]

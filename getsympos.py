@@ -5,14 +5,11 @@ from elftools.dwarf.die import DIE
 from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 from functools import wraps
-from libdebuginfod import DebugInfoD
-from pathlib import Path, PurePath
+from pathlib import PurePath
 from tabulate import tabulate
 
 import argparse
 import logging
-import os
-import shutil
 
 def require_attr(attr, require_die=False):
     def decorator(func):
@@ -203,12 +200,12 @@ def desc_cu(cu: CompileUnit, filter_cu_name="", filter_function_name=""):
     cu_die = cu.get_top_DIE()
     name_attr = cu_die.attributes.get('DW_AT_name')
     if not name_attr:
-        return
+        return []
 
     name = PurePath(name_attr.value.decode('utf-8', errors='ignore'))
     name = clean_relative_path(name)
     if filter_cu_name and name != PurePath(filter_cu_name):
-        return
+        return []
 
     logging.debug(f"\n[Compilation Unit] Offset: {cu.cu_offset}, Name: {name}")
 
@@ -218,23 +215,6 @@ def desc_cu(cu: CompileUnit, filter_cu_name="", filter_function_name=""):
         if die_is_func(die)
         if (func_info := get_function_information(die, filter_function_name))
     ]
-
-
-def get_build_id(elf):
-    notes_section = elf.get_section_by_name(".notes")
-    buildid_section = elf.get_section_by_name(".note.gnu.build-id")
-
-    if notes_section and buildid_section:
-        raise RuntimeError("Both .notes and .note.gnu.build-id exist, expected only one.")
-
-    section = notes_section or buildid_section
-    for note in section.iter_notes():
-        if note is None:
-            continue
-        if note["n_type"] == "NT_GNU_BUILD_ID" and note["n_name"] == "GNU":
-            return note["n_desc"]
-
-    return None
 
 
 def main():
@@ -251,61 +231,23 @@ def main():
         format="%(levelname)s: %(message)s"
     )
 
-    f = open(args.elf, "rb")
-    elf = ELFFile(f)
-
-    if not elf.has_dwarf_info():
-        logging.warning("Debug info missing")
-        logging.info(f'Downloading debug info from {os.environ.get("DEBUGINFOD_URLS")}')
-        build_id = get_build_id(elf)
-        assert build_id, f"Coulnd't find build id for {args.elf}"
-
-        with DebugInfoD() as d:
-            _, path = d.find_debuginfo(build_id)
-
-            # It happens sometimes that debuginfod can't find the debuginfo
-            # because the environment variable DEBUGINFOD_URLS is not set
-            # and it stores an empty cache file. If we then add the server
-            # url but the empty cache file is still present, debuginfo
-            # doesn't query the remote server to fetch the updated
-            # debuginfo and just returns the empty one from the cache.
-            # Hence workaround this issue by trying to delete the file and
-            # query debuginfod again.
-            if not path:
-                logging.warning(f"Coulnd't find debug info for {args.elf}:{build_id}, trying do clear the cache.")
-                cache_dir = Path.home()/".cache"/"debuginfod_client"/build_id
-                assert cache_dir.exists()
-                shutil.rmtree(cache_dir)
-                logging.info(f"Removed cached directory: {cache_dir}")
-
-                logging.info(f'Downloading (again) debug info from {os.environ.get("DEBUGINFOD_URLS")}')
-                _, path = d.find_debuginfo(build_id)
-
-        assert path, f"Coulnd't find debug info for {args.elf}:{build_id}"
-        logging.info("Debug info downloaded!")
-
-        # Replace the elf with the new one
-        f.close()
-        elf.close()
-        f = open(path, "rb")
-        elf = ELFFile(f)
-    else:
-        logging.info("Found debug info")
-
-
-    assert elf.has_dwarf_info()
-    dwarf_info = elf.get_dwarf_info(relocate_dwarf_sections=False)
-
-    logging.info("Starting sympos analysis")
-
     data = []
-    for cu in dwarf_info.iter_CUs():
-        cu_info = desc_cu(cu, filter_cu_name=args.cu, filter_function_name=args.function)
-        if cu_info:
-            data.extend(cu_info)
+    with open(args.elf, "rb") as f:
+        elf = ELFFile(f)
 
-    elf.close()
-    f.close();
+        if not elf.has_dwarf_info():
+            logging.error("Debug info missing in ELF file")
+            return 1
+
+        dwarf_info = elf.get_dwarf_info(relocate_dwarf_sections=False)
+
+        logging.info("Starting sympos analysis")
+        for cu in dwarf_info.iter_CUs():
+            cu_info = desc_cu(cu, filter_cu_name=args.cu, filter_function_name=args.function)
+            data.extend(cu_info)
+        logging.info("Sympos analysis finished")
+
+        elf.close()
 
     if data:
         header = ["Function", "File", "Line", "Address", "Sympos"]
