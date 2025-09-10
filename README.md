@@ -18,6 +18,9 @@ export DEBUGINFOD_URLS="<URL>:<PORT>" # Optional
 getsympos --elf $(debuginfod-find debuginfo <elf>) 
 ```
 
+> Sometimes the debuginfod query fails, clearing the cache might solve the
+> issue
+
 ## Installation
 
 ```
