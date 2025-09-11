@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 
-from io import UnsupportedOperation
 from elftools.dwarf.compileunit import CompileUnit
 from elftools.dwarf.die import DIE
 from elftools.dwarf.locationlists import LocationParser, LocationExpr
@@ -117,6 +116,14 @@ def desc_addr(attr_name):
     return attr_name.value
 
 
+@require_attr("DW_AT_ranges", require_die=True)
+def desc_ranges(attr_name, die):
+    # di = die.cu.dwarfinfo
+    # rangelists = di.range_lists()
+    logging.error("Addres ranges parsing not yet implemented!")
+    pass
+
+
 @require_attr("DW_AT_location", require_die=True)
 def desc_location(attr_name, die):
     """
@@ -150,6 +157,7 @@ FUNC_ATTR_DESCRIPTIONS = dict(
     DW_AT_decl_file=desc_file,
     DW_AT_decl_line=desc_line,
     DW_AT_low_pc=desc_addr,
+    DW_AT_ranges=desc_ranges,
     DW_AT_location=desc_location
 )
 
@@ -232,6 +240,7 @@ def get_die_information(die: DIE, filter=""):
     file = FUNC_ATTR_DESCRIPTIONS["DW_AT_decl_file"](die)
     line = FUNC_ATTR_DESCRIPTIONS["DW_AT_decl_line"](die)
     addr = FUNC_ATTR_DESCRIPTIONS[addr_tag](die)
+    logging.debug("sym=%s, file=%s, line=%s, addr=%s", name, file, line, addr)
 
     if name and file and line and addr:
         file = clean_relative_path(file)
@@ -240,7 +249,7 @@ def get_die_information(die: DIE, filter=""):
 
     if filter:
         # Only emit this when filter is enabled
-        logging.error("Couldn't find necessary attrybutes for %s", name)
+        logging.error("Couldn't find necessary attrybutes for '%s'", name)
 
     return []
 
@@ -262,7 +271,7 @@ def desc_cu(cu: CompileUnit, filter_cu_name="", filter_die_name=""):
     if filter_cu_name and name != PurePath(filter_cu_name):
         return []
 
-    logging.debug(f"\n[Compilation Unit] Offset: {cu.cu_offset}, Name: {name}")
+    logging.debug(f"[Compilation Unit] Offset: {cu.cu_offset}, Name: {name}")
 
     return [
         func_info
