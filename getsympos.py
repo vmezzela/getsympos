@@ -162,6 +162,7 @@ def get_function_symtab_sympos(function, address):
             if sym_addr == address:
                 return matches
 
+    logging.error("Couldn't find sympos for %s", function)
     return matches
 
 
