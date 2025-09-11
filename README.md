@@ -11,7 +11,7 @@ is unique, otherwise the sympos is counted starting from 1.
 ## Usage
 
 ```sh
-getsympos --elf <elf> --function <function> --cu <src file with the function definition>
+getsympos --elf <elf> --symbol <symbol> --cu <src file with the symbol definition>
 
 # if the elf doesn't have the debug symbols:
 export DEBUGINFOD_URLS="<URL>:<PORT>" # Optional
