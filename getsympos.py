@@ -277,7 +277,7 @@ def main():
     parser.add_argument("--elf", type=str, required=True, help="Path to the debug info file.")
     # FIXME: memory consumption is huge when we don't specify a CU
     parser.add_argument("--cu", type=str, required=False, help="Compilation unit to filter the debug information.")
-    parser.add_argument("--symbol", type=str, required=False, help="Symbol name to analyze.")
+    parser.add_argument("--symbols", nargs="*", required=False, help="Symbol name to analyze.")
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -297,8 +297,9 @@ def main():
 
         logging.info("Starting sympos analysis")
         for cu in dwarf_info.iter_CUs():
-            cu_info = desc_cu(cu, filter_cu_name=args.cu, filter_die_name=args.symbol)
-            data.extend(cu_info)
+            for sym in args.symbols:
+                cu_info = desc_cu(cu, filter_cu_name=args.cu, filter_die_name=sym)
+                data.extend(cu_info)
         logging.info("Sympos analysis finished")
 
         elf.close()
