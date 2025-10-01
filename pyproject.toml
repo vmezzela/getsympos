@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [project.scripts]
-getsympos = "getsympos:main"
+getsympos = "getsympos.cli:main"
 
 [build-system]
 requires = ["setuptools", "wheel"]

@@ -8,9 +8,7 @@ from elftools.elf.elffile import ELFFile
 from elftools.elf.sections import SymbolTableSection
 from functools import wraps
 from pathlib import PurePath
-from tabulate import tabulate
 
-import argparse
 import logging
 
 def require_attr(attr, require_die=False):
@@ -301,27 +299,3 @@ def analyze_elf(elf, symbols, cu_name):
     logging.info("Sympos analysis finished")
     return data
 
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--elf", type=str, required=True, help="Path to the debug info file.")
-    # FIXME: memory consumption is huge when we don't specify a CU
-    parser.add_argument("--cu", type=str, required=False, help="Compilation unit to filter the debug information.")
-    parser.add_argument("--symbols", nargs="*", required=False, help="Symbol name to analyze.")
-    args = parser.parse_args()
-
-    logging.basicConfig(
-        level=logging.INFO,  # or DEBUG for more detail
-        format="%(levelname)s: %(message)s"
-    )
-
-    with open(args.elf, "rb") as f:
-        elf = ELFFile(f)
-        data = analyze_elf(elf, args.symbols, args.cu)
-        elf.close()
-
-    if data:
-        header = ["Symbol", "File", "Line", "Address", "Sympos"]
-        print(tabulate(data, headers=header, tablefmt="simple"))
-    else:
-        print("No symbols found")
