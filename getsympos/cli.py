@@ -1,4 +1,4 @@
-from getsympos import getsympos
+from getsympos import core
 from elftools.elf.elffile import ELFFile
 from tabulate import tabulate
 
@@ -21,7 +21,7 @@ def main():
 
     with open(args.elf, "rb") as f:
         elf = ELFFile(f)
-        data = getsympos.analyze_elf(elf, args.symbols, args.cu)
+        data = core.analyze_elf(elf, args.symbols, args.cu)
         elf.close()
 
     if data:
