@@ -283,6 +283,25 @@ def desc_cu(cu: CompileUnit, elf: ELFFile, filter_cu_name="", filter_die_name=""
     ]
 
 
+def analyze_elf(elf, symbols, cu_name):
+    if not elf.has_dwarf_info():
+        logging.error("Debug info missing in ELF file")
+        return []
+
+    dwarf_info = elf.get_dwarf_info(relocate_dwarf_sections=False)
+
+    logging.info("Starting sympos analysis")
+
+    data = []
+    for cu in dwarf_info.iter_CUs():
+        for sym in symbols:
+            cu_info = desc_cu(cu, elf, filter_cu_name=cu_name, filter_die_name=sym)
+            data.extend(cu_info)
+
+    logging.info("Sympos analysis finished")
+    return data
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--elf", type=str, required=True, help="Path to the debug info file.")
@@ -296,23 +315,9 @@ def main():
         format="%(levelname)s: %(message)s"
     )
 
-    data = []
     with open(args.elf, "rb") as f:
         elf = ELFFile(f)
-
-        if not elf.has_dwarf_info():
-            logging.error("Debug info missing in ELF file")
-            return 1
-
-        dwarf_info = elf.get_dwarf_info(relocate_dwarf_sections=False)
-
-        logging.info("Starting sympos analysis")
-        for cu in dwarf_info.iter_CUs():
-            for sym in args.symbols:
-                cu_info = desc_cu(cu, elf, filter_cu_name=args.cu, filter_die_name=sym)
-                data.extend(cu_info)
-        logging.info("Sympos analysis finished")
-
+        data = analyze_elf(elf, args.symbols, args.cu)
         elf.close()
 
     if data:
