@@ -188,13 +188,14 @@ def die_is_variable(die: DIE):
     return die.tag == 'DW_TAG_variable'
 
 
-def get_symtab_sympos(symbol, address):
+def get_symtab_sympos(elf: ELFFile, symbol, address):
     """
     Retrieve the relative symbol position of a given symbol identified by its
     name and its address. The address is needed because more symbols with the
     same name might be present in the symbol table.
 
     Args:
+        elf: The elf containing the symtab.
         symbol: The name of the symbol.
         address: The address of the symbol.
     """
@@ -219,12 +220,13 @@ def get_symtab_sympos(symbol, address):
     return matches
 
 
-def get_die_information(die: DIE, filter=""):
+def get_die_information(die: DIE, elf: ELFFile, filter=""):
     """
     Extract and print symbol details including its name, file, and line number.
 
     Args:
         die (DIE): The Debugging Information Entry for a symbol.
+        elf: The elf containing the symtab.
     """
     if die_is_func(die):
         addr_tag = "DW_AT_low_pc"
@@ -244,7 +246,7 @@ def get_die_information(die: DIE, filter=""):
 
     if name and file and line and addr:
         file = clean_relative_path(file)
-        sympos = get_symtab_sympos(name, addr)
+        sympos = get_symtab_sympos(elf, name, addr)
         return [name, file, line, hex(addr), sympos]
 
     if filter:
@@ -254,12 +256,13 @@ def get_die_information(die: DIE, filter=""):
     return []
 
 
-def desc_cu(cu: CompileUnit, filter_cu_name="", filter_die_name=""):
+def desc_cu(cu: CompileUnit, elf: ELFFile, filter_cu_name="", filter_die_name=""):
     """
     Extract and print information about a Compilation Unit (CU) and its symbols.
 
     Args:
         cu (CompileUnit): The Compilation Unit to analyze.
+        elf: The elf containing the symtab.
     """
     cu_die = cu.get_top_DIE()
     name_attr = cu_die.attributes.get('DW_AT_name')
@@ -276,12 +279,11 @@ def desc_cu(cu: CompileUnit, filter_cu_name="", filter_die_name=""):
     return [
         func_info
         for die in cu.iter_DIEs()
-        if (func_info := get_die_information(die, filter_die_name))
+        if (func_info := get_die_information(die, elf, filter_die_name))
     ]
 
 
 def main():
-    global elf
     parser = argparse.ArgumentParser()
     parser.add_argument("--elf", type=str, required=True, help="Path to the debug info file.")
     # FIXME: memory consumption is huge when we don't specify a CU
@@ -307,7 +309,7 @@ def main():
         logging.info("Starting sympos analysis")
         for cu in dwarf_info.iter_CUs():
             for sym in args.symbols:
-                cu_info = desc_cu(cu, filter_cu_name=args.cu, filter_die_name=sym)
+                cu_info = desc_cu(cu, elf, filter_cu_name=args.cu, filter_die_name=sym)
                 data.extend(cu_info)
         logging.info("Sympos analysis finished")
 
